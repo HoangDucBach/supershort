@@ -64,13 +64,13 @@ export default async function middleware(request: NextRequest) {
             return NextResponse.redirect(new URL(longUrl), 301);
         } else {
             console.error(`API response for ${shortId} missing 'originalUrl' field.`);
-            const errorUrl = new URL('/error?code=API_DATA_MISSING', API_URL);
+            const errorUrl = new URL('/not-found');
             return NextResponse.redirect(errorUrl, 302);
         }
 
     } catch (error) {
         console.error('Error in redirect middleware during fetch:', error);
-        const errorUrl = new URL('/error?code=FETCH_FAILED', API_URL);
+        const errorUrl = new URL('not-found');
         return NextResponse.redirect(errorUrl, 302);
     }
 }
