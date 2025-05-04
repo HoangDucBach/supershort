@@ -8,15 +8,17 @@ import { addToast } from "@heroui/toast";
 import { useMutation } from "@tanstack/react-query";
 import axios, { AxiosError } from "axios";
 import clsx from "clsx";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { ClipboardDocumentIcon } from '@heroicons/react/24/outline';
 import { API_URL } from "@/utils/constants";
 
-interface ShortLinkResponse {
-    data: {
-        shortId: string;
-    };
+type ServerResponse = {
+    code: number;
+    message: string;
+    payload: any;
+    status: string;
 }
+
 
 interface ApiErrorResponse {
     message?: string;
@@ -31,9 +33,15 @@ export function ShortLinkInput({ className, ...props }: Props) {
     const [elapsedTime, setElapsedTime] = useState<number | null>(null);
     const [shortenedUrl, setShortenedUrl] = useState<string | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
+    const currentHost = useMemo(() => {
+        if (typeof window !== 'undefined') {
+            return window.location.origin;
+        }
+        return '';
+    }, []);
 
     const { mutate: short, data: mutationData, isPending, error } = useMutation<
-        ShortLinkResponse,
+        ServerResponse,
         AxiosError<ApiErrorResponse>,
         string
     >({
@@ -41,13 +49,8 @@ export function ShortLinkInput({ className, ...props }: Props) {
         mutationFn: async (urlToShorten: string) => {
             const start = performance.now();
             try {
-                const res = await axios.post<ShortLinkResponse>(`${API_URL}/short-links`, {
+                const res = await axios.post(`${API_URL}/short-links`, {
                     longUrl: urlToShorten,
-                }, {
-                    headers: {
-                        "Content-Type": "application/json",
-                        "Accept": "application/json",
-                    },
                 });
                 const end = performance.now();
                 setElapsedTime(end - start);
@@ -59,9 +62,9 @@ export function ShortLinkInput({ className, ...props }: Props) {
             }
         },
         onSuccess: (response) => {
-            const shortId = response?.data?.shortId;
+            const shortId = response?.payload?.shortId;
             if (shortId) {
-                const fullShortenedUrl = `${API_URL}/${shortId}`;
+                const fullShortenedUrl = `${currentHost}/${shortId}`;
                 setShortenedUrl(fullShortenedUrl);
                 setLongUrl('');
                 addToast({
@@ -76,7 +79,6 @@ export function ShortLinkInput({ className, ...props }: Props) {
                     title: "Error",
                     description: "Received an unexpected response from the server.",
                 });
-                setShortenedUrl(null);
             }
         },
         onError: (error) => {
@@ -162,7 +164,7 @@ export function ShortLinkInput({ className, ...props }: Props) {
             </div>
 
             {(shortenedUrl || isPending || error) && (
-                <div className="w-full p-3 rounded-2xl bg-content2 dark:bg-content1 border border-divider rounded-md flex flex-col gap-2 text-sm">
+                <div className="w-full p-3 rounded-2xl bg-content2 dark:bg-content1 border border-divider flex flex-col gap-2 text-sm">
                     <div className="flex flex-row items-center justify-between gap-2 ">
                         <span className="text-primary font-medium flex-shrink-0">Shortened URL:</span>
                         {isPending && !shortenedUrl && <span className="text-foreground-500 italic">Generating...</span>}
@@ -184,7 +186,7 @@ export function ShortLinkInput({ className, ...props }: Props) {
                                     variant="light"
                                     size="sm"
                                     aria-label="Copy shortened URL"
-                                    onClick={handleCopy}
+                                    onPress={handleCopy}
                                     className="text-foreground-600 hover:text-primary"
                                 >
                                     <ClipboardDocumentIcon className="h-4 w-4" />
